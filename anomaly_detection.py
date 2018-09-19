@@ -21,7 +21,7 @@ def parse_arg():
 
 
 def get_all_raw_files(input):      
-	path = input+'\\*csv' 
+	path = input+'/*csv' 
 	file_map = []   
 	files=glob.glob(path)
 	data_frame = None
@@ -49,6 +49,7 @@ def detect_anomalies(y, window_size, sigma=1.0):
 	residual = y - average
 	# Calculate the variation in the distribution of the residual
 	std = np.std(residual)
+	print ("STD: {}".format(std))
 	order_dict = collections.OrderedDict()
 	for index, val, avg_val in zip(count(), y, average):
 		if (np.abs(val-avg_val)) >= (sigma*std):
@@ -70,6 +71,7 @@ def plot_results(x, y, window_size, sigma=1):
 	plt.grid(True)
 	plt.xlabel('Time')
 	plt.ylabel('Clicks')
+	plt.title("Anomalies in Timeseries data")
 	plt.show()
 
 def remove_noise_from_anomaly_dict(anomalies_dict):
@@ -80,27 +82,23 @@ def remove_noise_from_anomaly_dict(anomalies_dict):
 	index = -1
 	final_anomalies = []
 	for i in range(len(arr)-1):
-		pre = arr[i]
-		curr = arr[i+1]
-		if curr == pre +1:
-			if index == -1:
-				index = i
-			i = i+1
-		else:
-			# Found contiguous anomolus data point
-			if i - index>5:
-				j = index
-				while j< i:
-					final_anomalies.append(arr[j])
-					j = j+1
-			i = i+1
+		if arr[i+1] == arr[i] +1:
 			index = i
+			while i < len(arr)-1 and (arr[i+1] == arr[i] +1):
+				i = i+1
+        # if found more than 5 contiguous anomalous points
+		if i -index>5:
+			j = index
+			while j< i:
+				final_anomalies.append(arr[j])
+				j = j+1
 	return final_anomalies
 
 
 def main():
-	#
-	window_size = 100
+	# Window Size : 1 hour => last 60 data points
+	window_size = 60
+	# Threshold for anomalous datapoint : if abs(datapoint -avg) > std* thresold then anomalous
 	sigma = 4
 	# Get data folder path
 	data_folder_path = parse_arg()
@@ -114,10 +112,11 @@ def main():
 	timestamp = data_frame[0].values
 
 	X = np.asarray([i for  i in range(len(clicks))])
-	# Plot data and anomaly
-	#plot_results(X, y=clicks, window_size=window_size, sigma=sigma)
 	# Get timestamp and anomaly
 	anomalies_dict = detect_anomalies(clicks,window_size, sigma)
+
+	# Plot data and anomaly
+	plot_results(X, y=clicks, window_size=window_size, sigma=sigma)
 	
 	# After removing noise, this is the list of anomaly indicies
 	final_anomalies_indices = remove_noise_from_anomaly_dict (anomalies_dict)
